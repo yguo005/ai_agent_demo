@@ -8,12 +8,16 @@ import time
 import logging
 from typing import Dict, Any, Optional
 import json
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # AI and Knowledge Base imports
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
-from llama_index.llms.anthropic import Anthropic
+from llama_index.llms.openai import OpenAI as LlamaOpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
-import anthropic
+from openai import OpenAI
 
 # Pacer imports
 from pacer import subscribe_threat_raw, publish_threat_analyzed
@@ -26,30 +30,26 @@ class ContextAnalyzer:
     """Analyzes threats and enriches them with business context"""
     
     def __init__(self):
-        self.anthropic_client = None
+        self.openai_client = None
         self.query_engine = None
         self.setup_ai_services()
         self.setup_knowledge_base()
     
     def setup_ai_services(self):
-        """Initialize AI services (OPENAI_API_KEY)"""
+        """Initialize AI services (OpenAI)"""
         try:
-            anthropic_key = os.getenv('OPENAI_API_KEY')
             openai_key = os.getenv('OPENAI_API_KEY')
             
-            if anthropic_key:
-                self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
-                logger.info("✅ Anthropic client initialized")
-            else:
-                logger.warning("⚠️ OPENAI_API_KEY not found - using fallback analysis")
-            
             if openai_key:
+                self.openai_client = OpenAI(api_key=openai_key)
+                logger.info("✅ OpenAI client initialized")
+                
                 # Configure LlamaIndex settings
-                Settings.llm = Anthropic(api_key=anthropic_key) if anthropic_key else None
+                Settings.llm = LlamaOpenAI(api_key=openai_key, model="gpt-4")
                 Settings.embed_model = OpenAIEmbedding(api_key=openai_key)
                 logger.info("✅ LlamaIndex settings configured")
             else:
-                logger.warning("⚠️ OPENAI_API_KEY not found - knowledge base disabled")
+                logger.warning("⚠️ OPENAI_API_KEY not found - using fallback analysis")
                 
         except Exception as e:
             logger.error(f"Error setting up AI services: {e}")
@@ -99,9 +99,9 @@ class ContextAnalyzer:
             return "Knowledge base query failed."
     
     def analyze_with_ai(self, raw_threat: Dict[Any, Any], context_info: str) -> Dict[Any, Any]:
-        """Use Anthropic AI to analyze threat with business context"""
+        """Use OpenAI to analyze threat with business context"""
         try:
-            if not self.anthropic_client:
+            if not self.openai_client:
                 return self.fallback_analysis(raw_threat)
             
             prompt = f"""You are a world-class security analyst AI. Transform this raw threat data into actionable business context.
@@ -124,14 +124,14 @@ Based on all this information, provide a summary in the following JSON format:
 
 Respond with ONLY the JSON object, no additional text."""
 
-            response = self.anthropic_client.messages.create(
-                model="claude-3-sonnet-20240229",
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4",
                 max_tokens=1000,
                 messages=[{"role": "user", "content": prompt}]
             )
             
             # Parse the AI response
-            ai_response = response.content[0].text.strip()
+            ai_response = response.choices[0].message.content.strip()
             
             # Clean up response if needed
             if ai_response.startswith("```json"):

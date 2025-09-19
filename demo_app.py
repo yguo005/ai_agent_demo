@@ -192,7 +192,7 @@ def main():
         st.metric("Redis", redis_status)
         
         # Check AI services
-        ai_status = "🟢 Ready" if st.session_state.analyzer.anthropic_client else "🟡 Fallback Mode"
+        ai_status = "🟢 Ready" if st.session_state.analyzer.openai_client else "🟡 Fallback Mode"
         st.metric("AI Services", ai_status)
         
         # Pipeline statistics
