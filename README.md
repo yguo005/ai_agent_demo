@@ -30,7 +30,7 @@ This project proudly integrates technologies from **5 key sponsors**, showcasing
 
 ## 🏗️ System Architecture
 
-The agents communicate in a seamless pipeline, passing data through the Redis Pacer.
+The agents communicate in a seamless pipeline, passing data through the Redis Pacer. HoneyHive provides observability over the AI analysis step.
 
 ```
  Threat Sources
@@ -48,16 +48,23 @@ The agents communicate in a seamless pipeline, passing data through the Redis Pa
 │ 🧠 Agent 2:      │──▶│   Knowledge Base   │
 │     Analyzer     │   │   (LlamaIndex)     │
 └──────────────────┘   └────────────────────┘
+       │                              ▲
+       │ (Sends Prompt)               │ (Observability)
+       ▼                              │
+┌──────────────────┐   ┌────────────────────┐
+│   AI Analysis    │──▶│      HoneyHive     │
+│     (OpenAI)     │   │     (Tracing)      │
+└──────────────────┘   └────────────────────┘
        │
        │ (Publishes Enriched Analysis via Redis)
        ▼
-┌──────────────────┐   ┌────────────────────┐
-│ ⚙️ Agent 3:      │──▶│  Remediation APIs  │
-│    Orchestrator  │   │ (Qodo / Speakeasy) │
-└──────────────────┘   └────────────────────┘
+┌──────────────────┐
+│ ⚙️ Agent 3:      │
+│    Orchestrator  │
+└──────────────────┘
        │
        ▼
-  Action Taken
+ Simulated Action
 ```
 
 ---
