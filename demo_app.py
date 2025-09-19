@@ -72,79 +72,84 @@ def run_pipeline_step(source="horizon3"):
         status_text.text("🚨 Detecting threat...")
         progress_bar.progress(10)
         
+        # Step 1: Threat Detection - Store the threat data for display
+        threat_data = None
         if st.session_state.monitor.detect_threat(source):
-            # Get the threat data from Redis
-            threat_data = pacer.subscribe_once("threat-raw", timeout=5)
+            # Get the last detected threat for display (without consuming from queue)
+            from simulated_data import HORIZON3_THREAT, BRIGHT_DATA_THREAT, TEST_THREATS
+            threat_sources = {
+                "horizon3": HORIZON3_THREAT,
+                "bright_data": BRIGHT_DATA_THREAT,
+                "test": TEST_THREATS[0]
+            }
+            threat_data = threat_sources.get(source, HORIZON3_THREAT).copy()
             
-            if threat_data:
-                with threat_placeholder.container():
-                    st.success("✅ Threat Detected!")
-                    st.json(threat_data)
-                
-                progress_bar.progress(33)
-                status_text.text("🧠 Analyzing threat with AI...")
-                
-                # Step 2: AI Analysis
-                analysis_data = st.session_state.analyzer.analyze_threat(timeout=30)
-                
-                if analysis_data:
-                    with analysis_placeholder.container():
-                        st.success("✅ Analysis Complete!")
-                        
-                        # Show key insights
-                        st.metric("Recommended Action", analysis_data.get('recommended_action', 'Unknown'))
-                        st.metric("Urgency", analysis_data.get('urgency', 'Unknown'))
-                        
-                        # Show full analysis
-                        with st.expander("📊 Full Analysis", expanded=False):
-                            st.json(analysis_data)
+            with threat_placeholder.container():
+                st.success("✅ Threat Detected!")
+                st.json(threat_data)
+            
+            progress_bar.progress(33)
+            status_text.text("🧠 Analyzing threat with AI...")
+            
+            # Step 2: AI Analysis - Let analyzer get data from queue
+            analysis_data = st.session_state.analyzer.analyze_threat(timeout=30)
+            
+            if analysis_data:
+                with analysis_placeholder.container():
+                    st.success("✅ Analysis Complete!")
                     
-                    progress_bar.progress(66)
-                    status_text.text("⚙️ Executing remediation...")
+                    # Show key insights
+                    st.metric("Recommended Action", analysis_data.get('recommended_action', 'Unknown'))
+                    st.metric("Urgency", analysis_data.get('urgency', 'Unknown'))
                     
-                    # Step 3: Remediation
-                    remediation_data = st.session_state.orchestrator.remediate_threat(timeout=30)
+                    # Show full analysis
+                    with st.expander("📊 Full Analysis", expanded=False):
+                        st.json(analysis_data)
+                
+                progress_bar.progress(66)
+                status_text.text("⚙️ Executing remediation...")
+                
+                # Step 3: Remediation
+                remediation_data = st.session_state.orchestrator.remediate_threat(timeout=30)
+                
+                if remediation_data:
+                    with remediation_placeholder.container():
+                        st.success("✅ Remediation Complete!")
+                        
+                        # Show action summary
+                        st.metric("Action Status", remediation_data.get('status', 'Unknown'))
+                        st.metric("Action Type", remediation_data.get('action_type', 'Unknown'))
+                        
+                        # Show details
+                        if 'details' in remediation_data:
+                            st.write("**Actions Taken:**")
+                            for detail in remediation_data['details']:
+                                st.write(f"• {detail}")
+                        
+                        # Show next steps
+                        if 'next_steps' in remediation_data:
+                            with st.expander("📋 Next Steps", expanded=True):
+                                for step in remediation_data['next_steps']:
+                                    st.write(f"• {step}")
                     
-                    if remediation_data:
-                        with remediation_placeholder.container():
-                            st.success("✅ Remediation Complete!")
-                            
-                            # Show action summary
-                            st.metric("Action Status", remediation_data.get('status', 'Unknown'))
-                            st.metric("Action Type", remediation_data.get('action_type', 'Unknown'))
-                            
-                            # Show details
-                            if 'details' in remediation_data:
-                                st.write("**Actions Taken:**")
-                                for detail in remediation_data['details']:
-                                    st.write(f"• {detail}")
-                            
-                            # Show next steps
-                            if 'next_steps' in remediation_data:
-                                with st.expander("📋 Next Steps", expanded=True):
-                                    for step in remediation_data['next_steps']:
-                                        st.write(f"• {step}")
-                        
-                        progress_bar.progress(100)
-                        status_text.text("✅ Pipeline execution completed successfully!")
-                        
-                        # Add to history
-                        pipeline_result = {
-                            'timestamp': datetime.now().isoformat(),
-                            'source': source,
-                            'threat': threat_data,
-                            'analysis': analysis_data,
-                            'remediation': remediation_data
-                        }
-                        st.session_state.pipeline_history.append(pipeline_result)
-                        
-                        return True
-                    else:
-                        remediation_placeholder.error("❌ Remediation failed")
+                    progress_bar.progress(100)
+                    status_text.text("✅ Pipeline execution completed successfully!")
+                    
+                    # Add to history
+                    pipeline_result = {
+                        'timestamp': datetime.now().isoformat(),
+                        'source': source,
+                        'threat': threat_data,
+                        'analysis': analysis_data,
+                        'remediation': remediation_data
+                    }
+                    st.session_state.pipeline_history.append(pipeline_result)
+                    
+                    return True
                 else:
-                    analysis_placeholder.error("❌ Analysis failed")
+                    remediation_placeholder.error("❌ Remediation failed")
             else:
-                threat_placeholder.error("❌ No threat data received")
+                analysis_placeholder.error("❌ Analysis failed")
         else:
             threat_placeholder.error("❌ Threat detection failed")
             
