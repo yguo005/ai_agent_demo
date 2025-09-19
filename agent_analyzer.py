@@ -18,6 +18,7 @@ from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.llms.openai import OpenAI as LlamaOpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
 from openai import OpenAI
+import honeyhive
 
 # Pacer imports
 from pacer import subscribe_threat_raw, publish_threat_analyzed
@@ -32,8 +33,21 @@ class ContextAnalyzer:
     def __init__(self):
         self.openai_client = None
         self.query_engine = None
+        self.setup_honeyhive()
         self.setup_ai_services()
         self.setup_knowledge_base()
+    
+    def setup_honeyhive(self):
+        """Initialize HoneyHive for observability"""
+        try:
+            honeyhive_key = os.getenv('HONEYHIVE_API_KEY')
+            if honeyhive_key:
+                honeyhive.init(api_key=honeyhive_key, project="Incident Response Agent")
+                logger.info("✅ HoneyHive client initialized")
+            else:
+                logger.warning("⚠️ HONEYHIVE_API_KEY not found - observability disabled")
+        except Exception as e:
+            logger.error(f"Error setting up HoneyHive: {e}")
     
     def setup_ai_services(self):
         """Initialize AI services (OpenAI)"""
@@ -124,14 +138,30 @@ Based on all this information, provide a summary in the following JSON format:
 
 Respond with ONLY the JSON object, no additional text."""
 
-            response = self.openai_client.chat.completions.create(
-                model="gpt-4",
-                max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            
-            # Parse the AI response
-            ai_response = response.choices[0].message.content.strip()
+            # Wrap OpenAI call with HoneyHive tracing
+            try:
+                with honeyhive.start_trace(name="ai_threat_analysis") as span:
+                    span.set_inputs({"prompt": prompt, "threat_data": raw_threat})
+                    
+                    response = self.openai_client.chat.completions.create(
+                        model="gpt-4",
+                        max_tokens=1000,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    
+                    # Parse the AI response
+                    ai_response = response.choices[0].message.content.strip()
+                    span.set_outputs({"response_text": ai_response})
+                    
+            except Exception as honeyhive_error:
+                # Fallback to direct OpenAI call if HoneyHive fails
+                logger.warning(f"HoneyHive tracing failed, using direct call: {honeyhive_error}")
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-4",
+                    max_tokens=1000,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                ai_response = response.choices[0].message.content.strip()
             
             # Clean up response if needed
             if ai_response.startswith("```json"):
