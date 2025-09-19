@@ -73,24 +73,24 @@ class IncidentResponsePipeline:
         logger.info("🧠 Starting analyzer listener...")
         while self.running:
             try:
-                analysis = self.analyzer.analyze_threat(timeout=5)
+                analysis = self.analyzer.analyze_threat(timeout=30)  # Increased timeout for AI processing
                 if analysis:
                     logger.info(f"✅ Analysis completed: {analysis.get('recommended_action')}")
             except Exception as e:
                 logger.error(f"Analyzer error: {e}")
-            time.sleep(1)
+            time.sleep(2)  # Reduced frequency to avoid spam
     
     def run_orchestrator_listener(self):
         """Run orchestrator in continuous listening mode"""
         logger.info("⚙️ Starting orchestrator listener...")
         while self.running:
             try:
-                remediation = self.orchestrator.remediate_threat(timeout=5)
+                remediation = self.orchestrator.remediate_threat(timeout=15)  # Increased timeout
                 if remediation:
                     logger.info(f"✅ Remediation completed: {remediation.get('status')}")
             except Exception as e:
                 logger.error(f"Orchestrator error: {e}")
-            time.sleep(1)
+            time.sleep(2)  # Reduced frequency to avoid spam
     
     def start_continuous_mode(self):
         """Start all agents in continuous listening mode"""
@@ -145,14 +145,14 @@ class IncidentResponsePipeline:
             else:
                 logger.error(f"❌ Failed to inject {source} threat")
             
-            # Wait between injections
+            # Wait between injections - increased time for AI processing
             if i < len(threat_sources):
                 logger.info("⏳ Waiting for pipeline to process...")
-                time.sleep(10)
+                time.sleep(45)  # Increased wait time for AI processing
         
         # Let final threat process
         logger.info("⏳ Waiting for final threat to complete...")
-        time.sleep(15)
+        time.sleep(60)  # Increased final wait time
         
         self.stop()
         logger.info("🎭 Demo mode completed")
