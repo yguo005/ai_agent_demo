@@ -2,7 +2,7 @@
 
 This project is a demonstration of an advanced, AI-powered cybersecurity pipeline built for the AI Agent Hackathon. It features a coordinated system of three intelligent agents that work together to automatically detect, analyze, and remediate security threats in real-time.
 
-## 核心概念 (Core Concept)
+## Core Concept
 
 The system is built on a three-agent pipeline, where each agent has a specialized role:
 
@@ -90,3 +90,5 @@ From the UI, you can:
 *   Watch the pipeline execute in real-time across the three columns.
 *   View the status of each integrated sponsor technology.
 *   See a history of completed pipeline runs.
+
+Demo: https://youtu.be/wbw2SM_R9r8
