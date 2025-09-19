@@ -34,7 +34,7 @@ The agents communicate in a seamless pipeline, passing data through the Redis Pa
 
 ```
  Threat Sources
-(Horizon3, Bright Data)
+(Horizon3)
        │
        ▼
 ┌──────────────────┐
